@@ -211,6 +211,13 @@
     padding: 10px 12px;
     transition: opacity .15s, transform .15s;
   }
+  .currency-row.base-row {
+    background: linear-gradient(135deg, #1a3a5c, #0f3460);
+    border: 1px solid var(--btn-eq);
+  }
+  .currency-row.base-row .val {
+    color: var(--btn-eq);
+  }
   .currency-row.dragging {
     opacity: .4;
   }
@@ -296,6 +303,73 @@
     margin-left: 4px;
   }
 
+  /* Favorite base currency bar */
+  .fav-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .fav-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    transition: transform .15s;
+  }
+  .fav-item.fav-dragging { opacity: .4; }
+  .fav-item.fav-drag-over { transform: scale(1.1); }
+  .fav-bar button {
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: var(--primary);
+    color: var(--text-dim);
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .fav-bar button:hover { background: var(--btn-hover); }
+  .fav-bar button.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .fav-bar .fav-add, .fav-bar .fav-edit {
+    background: none;
+    border: 1px dashed #555;
+    color: var(--text-dim);
+    font-size: .85rem;
+    padding: 5px 8px;
+  }
+  .fav-bar .fav-edit.editing {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .fav-bar .fav-add:hover, .fav-bar .fav-edit:hover { border-color: var(--text-dim); }
+  .fav-item .fav-remove {
+    display: none;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: .65rem;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 5;
+  }
+  .fav-bar.editing .fav-item .fav-remove { display: block; }
+  .fav-bar.editing .fav-item { cursor: grab; }
+  .fav-bar.editing .fav-item:active { cursor: grabbing; }
+
   @media (min-width: 500px) {
     body { align-items: center; }
   }
@@ -306,6 +380,7 @@
 <div class="app">
   <h1>Calculator + Currency</h1>
 
+  <div class="fav-bar" id="favBar"></div>
   <div class="display">
     <div class="expr" id="expr"></div>
     <div class="result-row">
@@ -515,16 +590,159 @@ const POPULAR_CURRENCIES = [
 let rates = {};
 let baseCur = 'JPY';
 let targetCurrencies = ['USD', 'EUR', 'GBP', 'CNY', 'KRW'];
+let favBaseCurrencies = ['JPY', 'USD', 'EUR'];
 
 const baseCurBtn = document.getElementById('baseCurBtn');
-let pickerMode = 'base'; // 'base' or 'add'
+let pickerMode = 'base'; // 'base', 'add', or 'fav'
+
+// ── Favorite Base Currency Bar ──
+let favEditing = false;
+let favDragSrcIdx = null;
+
+function setBaseCurrency(code) {
+  baseCur = code;
+  baseCurBtn.textContent = code;
+  renderFavBar();
+  fetchRates();
+}
+
+function toggleFavEdit() {
+  favEditing = !favEditing;
+  renderFavBar();
+}
+
+function removeFav(code) {
+  if (favBaseCurrencies.length <= 1) return;
+  favBaseCurrencies = favBaseCurrencies.filter(c => c !== code);
+  if (baseCur === code) setBaseCurrency(favBaseCurrencies[0]);
+  renderFavBar();
+}
+
+function reorderFav(fromIdx, toIdx) {
+  if (fromIdx === toIdx) return;
+  const item = favBaseCurrencies.splice(fromIdx, 1)[0];
+  favBaseCurrencies.splice(toIdx, 0, item);
+  renderFavBar();
+}
+
+function renderFavBar() {
+  const bar = document.getElementById('favBar');
+  bar.innerHTML = '';
+  if (favEditing) bar.classList.add('editing');
+  else bar.classList.remove('editing');
+
+  favBaseCurrencies.forEach((code, idx) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'fav-item';
+    wrapper.dataset.idx = idx;
+
+    const btn = document.createElement('button');
+    btn.textContent = code;
+    if (code === baseCur) btn.classList.add('active');
+    btn.onclick = () => { if (!favEditing) setBaseCurrency(code); };
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'fav-remove';
+    removeBtn.textContent = '×';
+    removeBtn.onclick = e => { e.stopPropagation(); removeFav(code); };
+
+    wrapper.appendChild(btn);
+    wrapper.appendChild(removeBtn);
+
+    // Drag (desktop)
+    if (favEditing) {
+      wrapper.draggable = true;
+      wrapper.addEventListener('dragstart', e => {
+        favDragSrcIdx = idx;
+        wrapper.classList.add('fav-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      wrapper.addEventListener('dragend', () => wrapper.classList.remove('fav-dragging'));
+      wrapper.addEventListener('dragover', e => { e.preventDefault(); wrapper.classList.add('fav-drag-over'); });
+      wrapper.addEventListener('dragleave', () => wrapper.classList.remove('fav-drag-over'));
+      wrapper.addEventListener('drop', e => {
+        e.preventDefault();
+        wrapper.classList.remove('fav-drag-over');
+        reorderFav(favDragSrcIdx, idx);
+      });
+      // Touch drag
+      wrapper.addEventListener('touchstart', e => {
+        if (!favEditing) return;
+        e.preventDefault();
+        favTouchDragStart(idx, wrapper, e.touches[0]);
+      }, { passive: false });
+    }
+
+    bar.appendChild(wrapper);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'fav-add';
+  addBtn.textContent = '+';
+  addBtn.title = 'お気に入り通貨を追加';
+  addBtn.onclick = () => openCurrencyPicker('fav');
+  bar.appendChild(addBtn);
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'fav-edit' + (favEditing ? ' editing' : '');
+  editBtn.textContent = favEditing ? '完了' : '編集';
+  editBtn.onclick = toggleFavEdit;
+  bar.appendChild(editBtn);
+}
+
+// Touch drag for fav bar
+let favTouchClone = null, favTouchIdx = null, favTouchEl = null;
+
+function favTouchDragStart(idx, el, touch) {
+  favTouchIdx = idx;
+  favTouchEl = el;
+  favTouchClone = el.cloneNode(true);
+  favTouchClone.style.cssText = `
+    position:fixed;z-index:300;pointer-events:none;opacity:.85;
+    left:${el.getBoundingClientRect().left}px;
+    top:${touch.clientY - el.offsetHeight / 2}px;
+  `;
+  document.body.appendChild(favTouchClone);
+  el.classList.add('fav-dragging');
+  document.addEventListener('touchmove', favTouchDragMove, { passive: false });
+  document.addEventListener('touchend', favTouchDragEnd);
+}
+
+function favTouchDragMove(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  if (favTouchClone) favTouchClone.style.top = (touch.clientY - favTouchClone.offsetHeight / 2) + 'px';
+  document.querySelectorAll('.fav-item').forEach(el => el.classList.remove('fav-drag-over'));
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (target) {
+    const item = target.closest('.fav-item');
+    if (item) item.classList.add('fav-drag-over');
+  }
+}
+
+function favTouchDragEnd(e) {
+  document.removeEventListener('touchmove', favTouchDragMove);
+  document.removeEventListener('touchend', favTouchDragEnd);
+  if (favTouchClone) { favTouchClone.remove(); favTouchClone = null; }
+  if (favTouchEl) favTouchEl.classList.remove('fav-dragging');
+  const touch = e.changedTouches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (target) {
+    const item = target.closest('.fav-item');
+    if (item && item.dataset.idx !== undefined) {
+      reorderFav(favTouchIdx, parseInt(item.dataset.idx));
+    }
+  }
+  document.querySelectorAll('.fav-drag-over').forEach(el => el.classList.remove('fav-drag-over'));
+  favTouchIdx = null; favTouchEl = null;
+}
 
 function openCurrencyPicker(mode) {
   pickerMode = mode;
   const overlay = document.getElementById('curPickerOverlay');
   const title = document.getElementById('curPickerTitle');
   const input = document.getElementById('curSearchInput');
-  title.textContent = mode === 'base' ? '計算元の通貨を選択' : '変換先通貨を追加';
+  title.textContent = mode === 'base' ? '計算元の通貨を選択' : mode === 'fav' ? 'お気に入り通貨を追加/削除' : '変換先通貨を追加';
   input.value = '';
   overlay.classList.add('open');
   input.focus();
@@ -549,6 +767,7 @@ function renderCurrencyPicker() {
     btn.textContent = `${c.symbol} ${c.code} - ${c.name}`;
     if (pickerMode === 'base' && c.code === baseCur) btn.classList.add('active');
     if (pickerMode === 'add' && targetCurrencies.includes(c.code)) btn.classList.add('active');
+    if (pickerMode === 'fav' && favBaseCurrencies.includes(c.code)) btn.classList.add('active');
     btn.onclick = () => selectCurrency(c.code);
     list.appendChild(btn);
   });
@@ -556,10 +775,18 @@ function renderCurrencyPicker() {
 
 function selectCurrency(code) {
   if (pickerMode === 'base') {
-    baseCur = code;
-    baseCurBtn.textContent = code;
+    setBaseCurrency(code);
     closeCurrencyPicker();
-    fetchRates();
+  } else if (pickerMode === 'fav') {
+    if (favBaseCurrencies.includes(code)) {
+      if (favBaseCurrencies.length > 1) {
+        favBaseCurrencies = favBaseCurrencies.filter(c => c !== code);
+      }
+    } else {
+      favBaseCurrencies.push(code);
+    }
+    renderCurrencyPicker();
+    renderFavBar();
   } else {
     if (!targetCurrencies.includes(code) && code !== baseCur) {
       targetCurrencies.push(code);
@@ -613,7 +840,7 @@ function convertCurrencies() {
   container.innerHTML = '';
   // Show base amount
   const baseRow = document.createElement('div');
-  baseRow.className = 'currency-row';
+  baseRow.className = 'currency-row base-row';
   baseRow.innerHTML = `
     <div>
       <div class="val">${formatCurrency(amount, baseCur)}</div>
@@ -760,6 +987,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Init ──
+renderFavBar();
 fetchRates();
 </script>
 </body>
