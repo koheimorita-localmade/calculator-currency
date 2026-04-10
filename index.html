@@ -209,7 +209,25 @@
     background: var(--primary);
     border-radius: 8px;
     padding: 10px 12px;
+    transition: opacity .15s, transform .15s;
   }
+  .currency-row.dragging {
+    opacity: .4;
+  }
+  .currency-row.drag-over {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px var(--btn-eq);
+  }
+  .drag-handle {
+    cursor: grab;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    padding: 0 8px 0 0;
+    touch-action: none;
+    user-select: none;
+    line-height: 1;
+  }
+  .drag-handle:active { cursor: grabbing; }
   .currency-row .val {
     font-size: 1.05rem;
     font-weight: 600;
@@ -605,7 +623,7 @@ function convertCurrencies() {
   `;
   container.appendChild(baseRow);
 
-  targetCurrencies.forEach(code => {
+  targetCurrencies.forEach((code, idx) => {
     if (code === baseCur) return;
     const rate = rates[code.toLowerCase()];
     if (!rate) return;
@@ -613,18 +631,118 @@ function convertCurrencies() {
     const text = formatCurrency(converted, code);
     const row = document.createElement('div');
     row.className = 'currency-row';
+    row.draggable = true;
+    row.dataset.idx = idx;
     row.innerHTML = `
-      <div>
-        <div class="val">${text}</div>
-        <div class="label">${getCurrencyInfo(code).name}</div>
+      <div style="display:flex;align-items:center">
+        <span class="drag-handle">☰</span>
+        <div>
+          <div class="val">${text}</div>
+          <div class="label">${getCurrencyInfo(code).name}</div>
+        </div>
       </div>
       <div>
         <button onclick="copyText('${text.replace(/'/g, "\\'")}')">コピー</button>
         <button class="remove-btn" onclick="removeTargetCurrency('${code}')" title="削除">✕</button>
       </div>
     `;
+    // Desktop drag events
+    row.addEventListener('dragstart', e => {
+      dragSrcIdx = idx;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('drag-over'); });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      reorderCurrency(dragSrcIdx, idx);
+    });
+    // Touch drag events
+    const handle = row.querySelector('.drag-handle');
+    handle.addEventListener('touchstart', e => {
+      e.preventDefault();
+      touchDragStart(idx, row, e.touches[0]);
+    }, { passive: false });
     container.appendChild(row);
   });
+}
+
+// ── Drag & Drop ──
+let dragSrcIdx = null;
+
+function reorderCurrency(fromIdx, toIdx) {
+  if (fromIdx === toIdx) return;
+  const item = targetCurrencies.splice(fromIdx, 1)[0];
+  targetCurrencies.splice(toIdx, 0, item);
+  convertCurrencies();
+}
+
+// Touch drag support for mobile
+let touchDragEl = null;
+let touchDragIdx = null;
+let touchClone = null;
+
+function touchDragStart(idx, rowEl, touch) {
+  touchDragIdx = idx;
+  touchDragEl = rowEl;
+
+  // Create floating clone
+  touchClone = rowEl.cloneNode(true);
+  touchClone.style.cssText = `
+    position:fixed; z-index:300; pointer-events:none;
+    width:${rowEl.offsetWidth}px; opacity:.85;
+    left:${rowEl.getBoundingClientRect().left}px;
+    top:${touch.clientY - rowEl.offsetHeight / 2}px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); border-radius:8px;
+  `;
+  document.body.appendChild(touchClone);
+  rowEl.classList.add('dragging');
+
+  document.addEventListener('touchmove', touchDragMove, { passive: false });
+  document.addEventListener('touchend', touchDragEnd);
+}
+
+function touchDragMove(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  if (touchClone) {
+    touchClone.style.top = (touch.clientY - touchClone.offsetHeight / 2) + 'px';
+  }
+  // Highlight row under finger
+  const container = document.getElementById('currencyResults');
+  const rows = container.querySelectorAll('.currency-row[draggable]');
+  rows.forEach(r => r.classList.remove('drag-over'));
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (el) {
+    const row = el.closest('.currency-row[draggable]');
+    if (row) row.classList.add('drag-over');
+  }
+}
+
+function touchDragEnd(e) {
+  document.removeEventListener('touchmove', touchDragMove);
+  document.removeEventListener('touchend', touchDragEnd);
+
+  if (touchClone) { touchClone.remove(); touchClone = null; }
+  if (touchDragEl) { touchDragEl.classList.remove('dragging'); }
+
+  // Find drop target
+  const touch = e.changedTouches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (el) {
+    const row = el.closest('.currency-row[draggable]');
+    if (row && row.dataset.idx !== undefined) {
+      reorderCurrency(touchDragIdx, parseInt(row.dataset.idx));
+    }
+  }
+
+  // Clean up highlights
+  document.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
+  touchDragIdx = null;
+  touchDragEl = null;
 }
 
 function copyText(text) {
