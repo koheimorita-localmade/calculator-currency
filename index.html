@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>計算機 + 通貨変換</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="計算機">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --primary: #0f3460;
+    --accent: #e94560;
+    --text: #eee;
+    --text-dim: #888;
+    --btn: #1f3a5f;
+    --btn-hover: #2a4a6f;
+    --btn-op: #e94560;
+    --btn-op-hover: #ff5a75;
+    --btn-eq: #00b4d8;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .app {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+
+  /* Display */
+  .display {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px 16px 16px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .display .expr {
+    font-size: 1rem;
+    color: var(--text-dim);
+    min-height: 1.4em;
+    word-break: break-all;
+  }
+  .display .result-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .display .result {
+    font-size: 2.4rem;
+    font-weight: 700;
+    word-break: break-all;
+    line-height: 1.2;
+  }
+  .display .base-cur-btn {
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: var(--primary);
+    border: 1px solid #444;
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .display .base-cur-btn:hover { background: var(--btn-hover); }
+
+  /* Currency picker modal */
+  .cur-picker-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+  }
+  .cur-picker-overlay.open { display: flex; }
+  .cur-picker {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    width: 90%;
+    max-width: 360px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cur-picker h3 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .cur-picker input {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: var(--primary);
+    color: var(--text);
+    font-size: .95rem;
+    outline: none;
+  }
+  .cur-picker-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cur-picker-list button {
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: var(--text);
+    font-size: .95rem;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .cur-picker-list button:hover { background: var(--btn-hover); }
+  .cur-picker-list button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Buttons grid */
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .keys button {
+    font-size: 1.3rem;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius);
+    padding: 18px 0;
+    cursor: pointer;
+    background: var(--btn);
+    color: var(--text);
+    transition: background .15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .keys button:hover { background: var(--btn-hover); }
+  .keys button:active { transform: scale(.96); }
+  .keys button.op { background: var(--btn-op); color: #fff; }
+  .keys button.op:hover { background: var(--btn-op-hover); }
+  .keys button.eq { background: var(--btn-eq); color: #fff; }
+  .keys button.eq:hover { background: #00c4e8; }
+  .keys button.wide { grid-column: span 2; }
+
+  /* Currency section */
+  .currency-section {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .currency-section h2 {
+    font-size: .95rem;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .currency-results {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .currency-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--primary);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .currency-row .val {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .currency-row .label {
+    font-size: .8rem;
+    color: var(--text-dim);
+  }
+  .currency-row button {
+    background: none;
+    border: 1px solid #555;
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: .8rem;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .currency-row button:hover {
+    background: rgba(255,255,255,.1);
+  }
+  .copy-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--btn-eq);
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: .9rem;
+    opacity: 0;
+    transition: opacity .3s, transform .3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .copy-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .rate-info {
+    font-size: .75rem;
+    color: var(--text-dim);
+    text-align: right;
+  }
+  .add-currency {
+    display: flex;
+    gap: 8px;
+  }
+  .add-currency button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    background: var(--btn-eq);
+    color: #fff;
+    font-size: .9rem;
+    cursor: pointer;
+  }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: .9rem;
+    padding: 4px 6px;
+    margin-left: 4px;
+  }
+
+  @media (min-width: 500px) {
+    body { align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>Calculator + Currency</h1>
+
+  <div class="display">
+    <div class="expr" id="expr"></div>
+    <div class="result-row">
+      <div class="result" id="result">0</div>
+      <button class="base-cur-btn" id="baseCurBtn" onclick="openCurrencyPicker('base')">JPY</button>
+    </div>
+  </div>
+
+  <div class="keys">
+    <button onclick="clearAll()">AC</button>
+    <button onclick="toggleSign()">+/-</button>
+    <button onclick="inputPercent()">%</button>
+    <button class="op" onclick="inputOp('/')">÷</button>
+
+    <button onclick="inputDigit('7')">7</button>
+    <button onclick="inputDigit('8')">8</button>
+    <button onclick="inputDigit('9')">9</button>
+    <button class="op" onclick="inputOp('*')">×</button>
+
+    <button onclick="inputDigit('4')">4</button>
+    <button onclick="inputDigit('5')">5</button>
+    <button onclick="inputDigit('6')">6</button>
+    <button class="op" onclick="inputOp('-')">−</button>
+
+    <button onclick="inputDigit('1')">1</button>
+    <button onclick="inputDigit('2')">2</button>
+    <button onclick="inputDigit('3')">3</button>
+    <button class="op" onclick="inputOp('+')">+</button>
+
+    <button class="wide" onclick="inputDigit('0')">0</button>
+    <button onclick="inputDot()">.</button>
+    <button class="eq" onclick="calculate()">=</button>
+  </div>
+
+  <div class="currency-section">
+    <h2>通貨変換</h2>
+    <div class="currency-results" id="currencyResults"></div>
+    <div class="add-currency">
+      <button onclick="openCurrencyPicker('add')" style="flex:1">+ 変換先通貨を追加</button>
+    </div>
+    <div class="rate-info" id="rateInfo"></div>
+  </div>
+
+  <!-- Currency Picker Modal -->
+  <div class="cur-picker-overlay" id="curPickerOverlay" onclick="if(event.target===this)closeCurrencyPicker()">
+    <div class="cur-picker">
+      <h3 id="curPickerTitle">通貨を選択</h3>
+      <input type="text" id="curSearchInput" placeholder="通貨名・コードで検索..." oninput="filterCurrencyPicker()">
+      <div class="cur-picker-list" id="curPickerList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="copy-toast" id="toast">コピーしました</div>
+
+<script>
+// ── Calculator State ──
+let current = '0';
+let previous = '';
+let operator = '';
+let shouldReset = false;
+let lastResult = null;
+
+const exprEl = document.getElementById('expr');
+const resultEl = document.getElementById('result');
+
+function updateDisplay() {
+  resultEl.textContent = formatNumber(current);
+  convertCurrencies();
+}
+
+function formatNumber(str) {
+  if (str === '' || str === '-') return str || '0';
+  const num = parseFloat(str);
+  if (isNaN(num)) return str;
+  if (str.includes('.') && str.endsWith('0') && !shouldReset) return str;
+  if (str.endsWith('.')) return str;
+  if (Number.isInteger(num) && !str.includes('.')) {
+    return num.toLocaleString('en-US');
+  }
+  const parts = str.split('.');
+  const intPart = parseInt(parts[0]).toLocaleString('en-US');
+  return intPart + '.' + (parts[1] || '');
+}
+
+function inputDigit(d) {
+  if (shouldReset) { current = ''; shouldReset = false; }
+  if (current === '0' && d === '0') return;
+  if (current === '0' && d !== '0') { current = d; }
+  else { current += d; }
+  updateDisplay();
+}
+
+function inputDot() {
+  if (shouldReset) { current = '0'; shouldReset = false; }
+  if (!current.includes('.')) current += '.';
+  updateDisplay();
+}
+
+function inputOp(op) {
+  if (operator && !shouldReset) {
+    calculate(true);
+  }
+  previous = current;
+  operator = op;
+  const opSymbol = { '/': '÷', '*': '×', '-': '−', '+': '+' }[op];
+  exprEl.textContent = formatNumber(previous) + ' ' + opSymbol;
+  shouldReset = true;
+}
+
+function calculate(chaining) {
+  if (!operator || previous === '') return;
+  const a = parseFloat(previous);
+  const b = parseFloat(current);
+  let r;
+  switch (operator) {
+    case '+': r = a + b; break;
+    case '-': r = a - b; break;
+    case '*': r = a * b; break;
+    case '/': r = b === 0 ? 'Error' : a / b; break;
+  }
+  if (r === 'Error') {
+    current = 'Error';
+  } else {
+    const rounded = parseFloat(r.toPrecision(12));
+    current = String(rounded);
+  }
+  if (!chaining) {
+    const opSymbol = { '/': '÷', '*': '×', '-': '−', '+': '+' }[operator];
+    exprEl.textContent = formatNumber(previous) + ' ' + opSymbol + ' ' + formatNumber(String(b));
+    operator = '';
+    previous = '';
+  }
+  shouldReset = true;
+  lastResult = parseFloat(current);
+  updateDisplay();
+  convertCurrencies();
+}
+
+function clearAll() {
+  current = '0';
+  previous = '';
+  operator = '';
+  shouldReset = false;
+  lastResult = null;
+  exprEl.textContent = '';
+  updateDisplay();
+  convertCurrencies();
+}
+
+function toggleSign() {
+  if (current === '0') return;
+  current = current.startsWith('-') ? current.slice(1) : '-' + current;
+  updateDisplay();
+}
+
+function inputPercent() {
+  current = String(parseFloat(current) / 100);
+  updateDisplay();
+}
+
+// ── Keyboard support ──
+document.addEventListener('keydown', e => {
+  if (e.key >= '0' && e.key <= '9') inputDigit(e.key);
+  else if (e.key === '.') inputDot();
+  else if (e.key === '+') inputOp('+');
+  else if (e.key === '-') inputOp('-');
+  else if (e.key === '*') inputOp('*');
+  else if (e.key === '/') { e.preventDefault(); inputOp('/'); }
+  else if (e.key === 'Enter' || e.key === '=') calculate();
+  else if (e.key === 'Escape' || e.key === 'c') clearAll();
+  else if (e.key === '%') inputPercent();
+  else if (e.key === 'Backspace') {
+    if (current.length > 1) current = current.slice(0, -1);
+    else current = '0';
+    updateDisplay();
+  }
+});
+
+// ── Currency Conversion ──
+const POPULAR_CURRENCIES = [
+  { code: 'JPY', name: '日本円', symbol: '¥' },
+  { code: 'USD', name: '米ドル', symbol: '$' },
+  { code: 'EUR', name: 'ユーロ', symbol: '€' },
+  { code: 'GBP', name: '英ポンド', symbol: '£' },
+  { code: 'CNY', name: '中国元', symbol: '¥' },
+  { code: 'KRW', name: '韓国ウォン', symbol: '₩' },
+  { code: 'TWD', name: '台湾ドル', symbol: 'NT$' },
+  { code: 'THB', name: 'タイバーツ', symbol: '฿' },
+  { code: 'AUD', name: '豪ドル', symbol: 'A$' },
+  { code: 'CAD', name: 'カナダドル', symbol: 'C$' },
+  { code: 'CHF', name: 'スイスフラン', symbol: 'CHF' },
+  { code: 'SGD', name: 'シンガポールドル', symbol: 'S$' },
+  { code: 'HKD', name: '香港ドル', symbol: 'HK$' },
+  { code: 'NZD', name: 'NZドル', symbol: 'NZ$' },
+  { code: 'SEK', name: 'スウェーデンクローナ', symbol: 'kr' },
+  { code: 'MXN', name: 'メキシコペソ', symbol: 'MX$' },
+  { code: 'INR', name: 'インドルピー', symbol: '₹' },
+  { code: 'BRL', name: 'ブラジルレアル', symbol: 'R$' },
+  { code: 'ZAR', name: '南アフリカランド', symbol: 'R' },
+  { code: 'TRY', name: 'トルコリラ', symbol: '₺' },
+  { code: 'PHP', name: 'フィリピンペソ', symbol: '₱' },
+  { code: 'VND', name: 'ベトナムドン', symbol: '₫' },
+  { code: 'AED', name: 'UAEディルハム', symbol: 'د.إ' },
+];
+
+let rates = {};
+let baseCur = 'JPY';
+let targetCurrencies = ['USD', 'EUR', 'GBP', 'CNY', 'KRW'];
+
+const baseCurBtn = document.getElementById('baseCurBtn');
+let pickerMode = 'base'; // 'base' or 'add'
+
+function openCurrencyPicker(mode) {
+  pickerMode = mode;
+  const overlay = document.getElementById('curPickerOverlay');
+  const title = document.getElementById('curPickerTitle');
+  const input = document.getElementById('curSearchInput');
+  title.textContent = mode === 'base' ? '計算元の通貨を選択' : '変換先通貨を追加';
+  input.value = '';
+  overlay.classList.add('open');
+  input.focus();
+  renderCurrencyPicker();
+}
+
+function closeCurrencyPicker() {
+  document.getElementById('curPickerOverlay').classList.remove('open');
+}
+
+function filterCurrencyPicker() {
+  renderCurrencyPicker();
+}
+
+function renderCurrencyPicker() {
+  const query = document.getElementById('curSearchInput').value.toLowerCase();
+  const list = document.getElementById('curPickerList');
+  list.innerHTML = '';
+  POPULAR_CURRENCIES.forEach(c => {
+    if (query && !c.code.toLowerCase().includes(query) && !c.name.toLowerCase().includes(query) && !c.symbol.includes(query)) return;
+    const btn = document.createElement('button');
+    btn.textContent = `${c.symbol} ${c.code} - ${c.name}`;
+    if (pickerMode === 'base' && c.code === baseCur) btn.classList.add('active');
+    if (pickerMode === 'add' && targetCurrencies.includes(c.code)) btn.classList.add('active');
+    btn.onclick = () => selectCurrency(c.code);
+    list.appendChild(btn);
+  });
+}
+
+function selectCurrency(code) {
+  if (pickerMode === 'base') {
+    baseCur = code;
+    baseCurBtn.textContent = code;
+    closeCurrencyPicker();
+    fetchRates();
+  } else {
+    if (!targetCurrencies.includes(code) && code !== baseCur) {
+      targetCurrencies.push(code);
+    } else if (targetCurrencies.includes(code)) {
+      targetCurrencies = targetCurrencies.filter(c => c !== code);
+    }
+    renderCurrencyPicker();
+    convertCurrencies();
+  }
+}
+
+function removeTargetCurrency(code) {
+  targetCurrencies = targetCurrencies.filter(c => c !== code);
+  convertCurrencies();
+}
+
+async function fetchRates() {
+  try {
+    const res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${baseCur.toLowerCase()}.json`);
+    const data = await res.json();
+    rates = data[baseCur.toLowerCase()];
+    const dateStr = data.date || 'N/A';
+    document.getElementById('rateInfo').textContent = `レート更新日: ${dateStr} (自動取得)`;
+    convertCurrencies();
+  } catch (e) {
+    document.getElementById('rateInfo').textContent = 'レート取得に失敗しました。オフラインかもしれません。';
+  }
+}
+
+function getCurrencyInfo(code) {
+  return POPULAR_CURRENCIES.find(c => c.code === code) || { code, name: code, symbol: code };
+}
+
+function formatCurrency(amount, code) {
+  const info = getCurrencyInfo(code);
+  const decimals = ['JPY', 'KRW', 'VND'].includes(code) ? 0 : 2;
+  const formatted = amount.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${info.symbol}${formatted} ${code}`;
+}
+
+function convertCurrencies() {
+  const container = document.getElementById('currencyResults');
+  const amount = parseFloat(current);
+  if (isNaN(amount) || !rates || Object.keys(rates).length === 0) {
+    container.innerHTML = '<div style="color:var(--text-dim);font-size:.9rem;padding:8px;">計算結果を入力するとここに通貨変換が表示されます</div>';
+    return;
+  }
+  container.innerHTML = '';
+  // Show base amount
+  const baseRow = document.createElement('div');
+  baseRow.className = 'currency-row';
+  baseRow.innerHTML = `
+    <div>
+      <div class="val">${formatCurrency(amount, baseCur)}</div>
+      <div class="label">${getCurrencyInfo(baseCur).name}（元の値）</div>
+    </div>
+    <button onclick="copyText('${formatCurrency(amount, baseCur).replace(/'/g, "\\'")}')">コピー</button>
+  `;
+  container.appendChild(baseRow);
+
+  targetCurrencies.forEach(code => {
+    if (code === baseCur) return;
+    const rate = rates[code.toLowerCase()];
+    if (!rate) return;
+    const converted = amount * rate;
+    const text = formatCurrency(converted, code);
+    const row = document.createElement('div');
+    row.className = 'currency-row';
+    row.innerHTML = `
+      <div>
+        <div class="val">${text}</div>
+        <div class="label">${getCurrencyInfo(code).name}</div>
+      </div>
+      <div>
+        <button onclick="copyText('${text.replace(/'/g, "\\'")}')">コピー</button>
+        <button class="remove-btn" onclick="removeTargetCurrency('${code}')" title="削除">✕</button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('toast');
+    toast.textContent = `コピーしました: ${text}`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  });
+}
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+
+// ── Init ──
+fetchRates();
+</script>
+</body>
+</html>
