@@ -49,6 +49,11 @@
     font-weight: 600;
     color: var(--text-dim);
   }
+  h1 span {
+    font-size: .7rem;
+    font-weight: 400;
+    margin-left: 6px;
+  }
 
   /* Display */
   .display {
@@ -378,7 +383,7 @@
 <body>
 
 <div class="app">
-  <h1>Calculator + Currency</h1>
+  <h1>Calculator + Currency <span>v1.4.0</span></h1>
 
   <div class="fav-bar" id="favBar"></div>
   <div class="display">
@@ -437,6 +442,20 @@
 <div class="copy-toast" id="toast">コピーしました</div>
 
 <script>
+// ── Prevent iOS Safari double-tap zoom ──
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    e.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
+
+// Prevent pinch zoom
+document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+
 // ── Calculator State ──
 let current = '0';
 let previous = '';
