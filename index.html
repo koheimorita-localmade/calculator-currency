@@ -5,108 +5,220 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>計算機 + 通貨変換</title>
 <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="計算機">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   :root {
-    --bg: #1a1a2e;
-    --surface: #16213e;
-    --primary: #0f3460;
-    --accent: #e94560;
-    --text: #eee;
-    --text-dim: #888;
-    --btn: #1f3a5f;
-    --btn-hover: #2a4a6f;
-    --btn-op: #e94560;
-    --btn-op-hover: #ff5a75;
-    --btn-eq: #00b4d8;
-    --radius: 12px;
+    --bg: #000;
+    --surface: #1c1c1e;
+    --text: #fff;
+    --text-dim: #8e8e93;
+    --btn-num: #333333;
+    --btn-num-hover: #444;
+    --btn-func: #a5a5a5;
+    --btn-func-hover: #b5b5b5;
+    --btn-func-text: #000;
+    --btn-op: #ff9f0a;
+    --btn-op-hover: #ffb340;
+    --btn-op-active: #fff;
+    --radius: 50%;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 16px;
+    padding: 12px;
   }
   .app {
     width: 100%;
     max-width: 420px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
-  h1 {
-    text-align: center;
-    font-size: 1.2rem;
-    font-weight: 600;
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+  }
+  .header h1 {
+    font-size: .85rem;
+    font-weight: 500;
     color: var(--text-dim);
   }
-  h1 span {
-    font-size: .7rem;
+  .header h1 span {
+    font-size: .65rem;
     font-weight: 400;
-    margin-left: 6px;
+    margin-left: 4px;
+    opacity: .6;
   }
+
+  /* Favorite bar */
+  .fav-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0 4px;
+  }
+  .fav-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    transition: transform .15s;
+  }
+  .fav-item.fav-dragging { opacity: .4; }
+  .fav-item.fav-drag-over { transform: scale(1.1); }
+  .fav-bar button {
+    padding: 5px 12px;
+    border-radius: 14px;
+    border: 1px solid #444;
+    background: var(--btn-num);
+    color: var(--text-dim);
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .fav-bar button:hover { background: var(--btn-num-hover); }
+  .fav-bar button.active {
+    background: var(--btn-op);
+    color: #000;
+    border-color: var(--btn-op);
+  }
+  .fav-bar .fav-add, .fav-bar .fav-edit {
+    background: none;
+    border: 1px dashed #555;
+    color: var(--text-dim);
+    font-size: .8rem;
+    padding: 5px 8px;
+  }
+  .fav-bar .fav-edit.editing {
+    border-color: var(--btn-op);
+    color: var(--btn-op);
+  }
+  .fav-item .fav-remove {
+    display: none;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ff3b30;
+    color: #fff;
+    border: none;
+    font-size: .65rem;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 5;
+  }
+  .fav-bar.editing .fav-item .fav-remove { display: block; }
+  .fav-bar.editing .fav-item { cursor: grab; }
 
   /* Display */
   .display {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 20px 16px 16px;
-    min-height: 100px;
+    padding: 0 16px 8px;
+    min-height: 90px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     align-items: flex-end;
-    overflow: hidden;
   }
   .display .expr {
-    font-size: 1rem;
+    font-size: .95rem;
     color: var(--text-dim);
-    min-height: 1.4em;
+    min-height: 1.3em;
     word-break: break-all;
   }
   .display .result-row {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
     justify-content: flex-end;
   }
   .display .result {
-    font-size: 2.4rem;
-    font-weight: 700;
+    font-size: 3.2rem;
+    font-weight: 300;
     word-break: break-all;
-    line-height: 1.2;
+    line-height: 1.15;
+    letter-spacing: -1px;
   }
   .display .base-cur-btn {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
-    background: var(--primary);
-    border: 1px solid #444;
-    color: var(--accent);
-    border-radius: 8px;
+    background: var(--btn-num);
+    border: 1px solid #555;
+    color: var(--btn-op);
+    border-radius: 14px;
     padding: 4px 10px;
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
     transition: background .15s;
   }
-  .display .base-cur-btn:hover { background: var(--btn-hover); }
+  .display .base-cur-btn:hover { background: var(--btn-num-hover); }
+
+  /* Calculator buttons */
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 0 4px;
+  }
+  .keys button {
+    aspect-ratio: 1;
+    font-size: 1.5rem;
+    font-weight: 400;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    background: var(--btn-num);
+    color: var(--text);
+    transition: background .1s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .keys button:active { opacity: .7; }
+  .keys button.func {
+    background: var(--btn-func);
+    color: var(--btn-func-text);
+    font-size: 1.3rem;
+  }
+  .keys button.func:active { background: var(--btn-func-hover); }
+  .keys button.op {
+    background: var(--btn-op);
+    color: #fff;
+    font-size: 1.7rem;
+  }
+  .keys button.op:active { background: var(--btn-op-hover); }
+  .keys button.op.active-op {
+    background: #fff;
+    color: var(--btn-op);
+  }
 
   /* Currency picker modal */
   .cur-picker-overlay {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.6);
+    background: rgba(0,0,0,.7);
     z-index: 200;
     justify-content: center;
     align-items: center;
@@ -114,7 +226,7 @@
   .cur-picker-overlay.open { display: flex; }
   .cur-picker {
     background: var(--surface);
-    border-radius: var(--radius);
+    border-radius: 16px;
     padding: 16px;
     width: 90%;
     max-width: 360px;
@@ -123,15 +235,12 @@
     flex-direction: column;
     gap: 10px;
   }
-  .cur-picker h3 {
-    font-size: 1rem;
-    font-weight: 600;
-  }
+  .cur-picker h3 { font-size: 1rem; font-weight: 600; }
   .cur-picker input {
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #444;
-    background: var(--primary);
+    background: var(--btn-num);
     color: var(--text);
     font-size: .95rem;
     outline: none;
@@ -146,64 +255,34 @@
     text-align: left;
     padding: 10px 12px;
     border: none;
-    border-radius: 8px;
-    background: var(--primary);
+    border-radius: 10px;
+    background: var(--btn-num);
     color: var(--text);
     font-size: .95rem;
     cursor: pointer;
     transition: background .15s;
   }
-  .cur-picker-list button:hover { background: var(--btn-hover); }
-  .cur-picker-list button.active {
-    background: var(--accent);
-    color: #fff;
-  }
-
-  /* Buttons grid */
-  .keys {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-  }
-  .keys button {
-    font-size: 1.3rem;
-    font-weight: 600;
-    border: none;
-    border-radius: var(--radius);
-    padding: 18px 0;
-    cursor: pointer;
-    background: var(--btn);
-    color: var(--text);
-    transition: background .15s;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-  }
-  .keys button:hover { background: var(--btn-hover); }
-  .keys button:active { transform: scale(.96); }
-  .keys button.op { background: var(--btn-op); color: #fff; }
-  .keys button.op:hover { background: var(--btn-op-hover); }
-  .keys button.eq { background: var(--btn-eq); color: #fff; }
-  .keys button.eq:hover { background: #00c4e8; }
-  .keys button.wide { grid-column: span 2; }
+  .cur-picker-list button:hover { background: var(--btn-num-hover); }
+  .cur-picker-list button.active { background: var(--btn-op); color: #000; }
 
   /* Currency section */
   .currency-section {
     background: var(--surface);
-    border-radius: var(--radius);
-    padding: 16px;
+    border-radius: 16px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
   .currency-section h2 {
-    font-size: .95rem;
+    font-size: .9rem;
     color: var(--text-dim);
     font-weight: 500;
   }
   .currency-results {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
     max-height: 260px;
     overflow-y: auto;
   }
@@ -211,24 +290,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--primary);
-    border-radius: 8px;
+    background: var(--btn-num);
+    border-radius: 10px;
     padding: 10px 12px;
     transition: opacity .15s, transform .15s;
   }
   .currency-row.base-row {
-    background: linear-gradient(135deg, #1a3a5c, #0f3460);
-    border: 1px solid var(--btn-eq);
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 1px solid var(--btn-op);
   }
-  .currency-row.base-row .val {
-    color: var(--btn-eq);
-  }
-  .currency-row.dragging {
-    opacity: .4;
-  }
+  .currency-row.base-row .val { color: var(--btn-op); }
+  .currency-row.dragging { opacity: .4; }
   .currency-row.drag-over {
     transform: scale(1.02);
-    box-shadow: 0 0 0 2px var(--btn-eq);
+    box-shadow: 0 0 0 2px var(--btn-op);
   }
   .drag-handle {
     cursor: grab;
@@ -239,38 +314,30 @@
     user-select: none;
     line-height: 1;
   }
-  .drag-handle:active { cursor: grabbing; }
-  .currency-row .val {
-    font-size: 1.05rem;
-    font-weight: 600;
-  }
-  .currency-row .label {
-    font-size: .8rem;
-    color: var(--text-dim);
-  }
+  .currency-row .val { font-size: 1rem; font-weight: 600; }
+  .currency-row .label { font-size: .75rem; color: var(--text-dim); }
   .currency-row button {
     background: none;
     border: 1px solid #555;
     color: var(--text);
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 4px 10px;
-    font-size: .8rem;
+    font-size: .78rem;
     cursor: pointer;
     transition: background .15s;
   }
-  .currency-row button:hover {
-    background: rgba(255,255,255,.1);
-  }
+  .currency-row button:hover { background: rgba(255,255,255,.1); }
   .copy-toast {
     position: fixed;
     bottom: 30px;
     left: 50%;
     transform: translateX(-50%) translateY(20px);
-    background: var(--btn-eq);
-    color: #fff;
+    background: var(--btn-op);
+    color: #000;
     padding: 8px 20px;
     border-radius: 20px;
     font-size: .9rem;
+    font-weight: 600;
     opacity: 0;
     transition: opacity .3s, transform .3s;
     pointer-events: none;
@@ -281,7 +348,7 @@
     transform: translateX(-50%) translateY(0);
   }
   .rate-info {
-    font-size: .75rem;
+    font-size: .7rem;
     color: var(--text-dim);
     text-align: right;
   }
@@ -291,89 +358,23 @@
   }
   .add-currency button {
     padding: 8px 14px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: none;
-    background: var(--btn-eq);
-    color: #fff;
-    font-size: .9rem;
+    background: var(--btn-op);
+    color: #000;
+    font-size: .85rem;
+    font-weight: 600;
     cursor: pointer;
   }
   .remove-btn {
     background: none;
     border: none;
-    color: var(--accent);
+    color: #ff3b30;
     cursor: pointer;
     font-size: .9rem;
     padding: 4px 6px;
     margin-left: 4px;
   }
-
-  /* Favorite base currency bar */
-  .fav-bar {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .fav-item {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    transition: transform .15s;
-  }
-  .fav-item.fav-dragging { opacity: .4; }
-  .fav-item.fav-drag-over { transform: scale(1.1); }
-  .fav-bar button {
-    padding: 5px 10px;
-    border-radius: 8px;
-    border: 1px solid #444;
-    background: var(--primary);
-    color: var(--text-dim);
-    font-size: .8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .15s;
-    white-space: nowrap;
-  }
-  .fav-bar button:hover { background: var(--btn-hover); }
-  .fav-bar button.active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-  }
-  .fav-bar .fav-add, .fav-bar .fav-edit {
-    background: none;
-    border: 1px dashed #555;
-    color: var(--text-dim);
-    font-size: .85rem;
-    padding: 5px 8px;
-  }
-  .fav-bar .fav-edit.editing {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .fav-bar .fav-add:hover, .fav-bar .fav-edit:hover { border-color: var(--text-dim); }
-  .fav-item .fav-remove {
-    display: none;
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    font-size: .65rem;
-    line-height: 18px;
-    text-align: center;
-    cursor: pointer;
-    padding: 0;
-    z-index: 5;
-  }
-  .fav-bar.editing .fav-item .fav-remove { display: block; }
-  .fav-bar.editing .fav-item { cursor: grab; }
-  .fav-bar.editing .fav-item:active { cursor: grabbing; }
 
   @media (min-width: 500px) {
     body { align-items: center; }
@@ -383,7 +384,9 @@
 <body>
 
 <div class="app">
-  <h1>Calculator + Currency <span>v1.4.1</span></h1>
+  <div class="header">
+    <h1>Calculator + Currency <span>v2.0.0</span></h1>
+  </div>
 
   <div class="fav-bar" id="favBar"></div>
   <div class="display">
@@ -395,9 +398,9 @@
   </div>
 
   <div class="keys">
-    <button onclick="clearAll()">AC</button>
-    <button onclick="toggleSign()">+/-</button>
-    <button onclick="inputPercent()">%</button>
+    <button class="func" id="bsBtn" onclick="backspace()" data-long="clearAll">⌫</button>
+    <button class="func" id="acBtn" onclick="clearOrAC()">AC</button>
+    <button class="func" onclick="inputPercent()">%</button>
     <button class="op" onclick="inputOp('/')">÷</button>
 
     <button onclick="inputDigit('7')">7</button>
@@ -415,9 +418,10 @@
     <button onclick="inputDigit('3')">3</button>
     <button class="op" onclick="inputOp('+')">+</button>
 
-    <button class="wide" onclick="inputDigit('0')">0</button>
+    <button onclick="toggleSign()">+/−</button>
+    <button onclick="inputDigit('0')">0</button>
     <button onclick="inputDot()">.</button>
-    <button class="eq" onclick="calculate()">=</button>
+    <button class="op" onclick="calculate()">=</button>
   </div>
 
   <div class="currency-section">
@@ -451,10 +455,22 @@ let lastResult = null;
 
 const exprEl = document.getElementById('expr');
 const resultEl = document.getElementById('result');
+const bsBtn = document.getElementById('bsBtn');
+const acBtn = document.getElementById('acBtn');
 
 function updateDisplay() {
   resultEl.textContent = formatNumber(current);
+  updateFuncButtons();
   convertCurrencies();
+}
+
+function updateFuncButtons() {
+  // AC/C button: show C when there's input, AC when cleared
+  if (current !== '0' || operator || previous) {
+    acBtn.textContent = 'C';
+  } else {
+    acBtn.textContent = 'AC';
+  }
 }
 
 function formatNumber(str) {
@@ -477,6 +493,7 @@ function inputDigit(d) {
   if (current === '0' && d !== '0') { current = d; }
   else { current += d; }
   updateDisplay();
+  updateActiveOp('');
 }
 
 function inputDot() {
@@ -494,6 +511,20 @@ function inputOp(op) {
   const opSymbol = { '/': '÷', '*': '×', '-': '−', '+': '+' }[op];
   exprEl.textContent = formatNumber(previous) + ' ' + opSymbol;
   shouldReset = true;
+  updateActiveOp(op);
+  updateFuncButtons();
+}
+
+function updateActiveOp(op) {
+  document.querySelectorAll('.keys button.op').forEach(btn => {
+    btn.classList.remove('active-op');
+  });
+  if (op) {
+    const symbol = { '/': '÷', '*': '×', '-': '−', '+': '+' }[op];
+    document.querySelectorAll('.keys button.op').forEach(btn => {
+      if (btn.textContent === symbol) btn.classList.add('active-op');
+    });
+  }
 }
 
 function calculate(chaining) {
@@ -521,8 +552,52 @@ function calculate(chaining) {
   }
   shouldReset = true;
   lastResult = parseFloat(current);
+  updateActiveOp('');
   updateDisplay();
-  convertCurrencies();
+}
+
+// Backspace: tap = delete last digit, long press = AC
+function backspace() {
+  if (shouldReset || current === 'Error') {
+    clearAll();
+    return;
+  }
+  if (current.length > 1) current = current.slice(0, -1);
+  else current = '0';
+  updateDisplay();
+}
+
+// Long press on BS button
+let bsLongTimer = null;
+bsBtn.addEventListener('touchstart', e => {
+  bsLongTimer = setTimeout(() => {
+    clearAll();
+    bsLongTimer = null;
+  }, 500);
+}, { passive: true });
+bsBtn.addEventListener('touchend', () => {
+  if (bsLongTimer) { clearTimeout(bsLongTimer); bsLongTimer = null; }
+});
+bsBtn.addEventListener('mousedown', () => {
+  bsLongTimer = setTimeout(() => {
+    clearAll();
+    bsLongTimer = null;
+  }, 500);
+});
+bsBtn.addEventListener('mouseup', () => {
+  if (bsLongTimer) { clearTimeout(bsLongTimer); bsLongTimer = null; }
+});
+
+// C/AC button
+function clearOrAC() {
+  if (acBtn.textContent === 'C') {
+    // C: clear current entry only
+    current = '0';
+    shouldReset = false;
+    updateDisplay();
+  } else {
+    clearAll();
+  }
 }
 
 function clearAll() {
@@ -532,8 +607,8 @@ function clearAll() {
   shouldReset = false;
   lastResult = null;
   exprEl.textContent = '';
+  updateActiveOp('');
   updateDisplay();
-  convertCurrencies();
 }
 
 function toggleSign() {
@@ -556,13 +631,9 @@ document.addEventListener('keydown', e => {
   else if (e.key === '*') inputOp('*');
   else if (e.key === '/') { e.preventDefault(); inputOp('/'); }
   else if (e.key === 'Enter' || e.key === '=') calculate();
-  else if (e.key === 'Escape' || e.key === 'c') clearAll();
+  else if (e.key === 'Escape') clearAll();
   else if (e.key === '%') inputPercent();
-  else if (e.key === 'Backspace') {
-    if (current.length > 1) current = current.slice(0, -1);
-    else current = '0';
-    updateDisplay();
-  }
+  else if (e.key === 'Backspace') backspace();
 });
 
 // ── Currency Conversion ──
@@ -598,7 +669,7 @@ let targetCurrencies = ['USD', 'EUR', 'GBP', 'CNY', 'KRW'];
 let favBaseCurrencies = ['JPY', 'USD', 'EUR'];
 
 const baseCurBtn = document.getElementById('baseCurBtn');
-let pickerMode = 'base'; // 'base', 'add', or 'fav'
+let pickerMode = 'base';
 
 // ── Favorite Base Currency Bar ──
 let favEditing = false;
@@ -654,7 +725,6 @@ function renderFavBar() {
     wrapper.appendChild(btn);
     wrapper.appendChild(removeBtn);
 
-    // Drag (desktop)
     if (favEditing) {
       wrapper.draggable = true;
       wrapper.addEventListener('dragstart', e => {
@@ -670,7 +740,6 @@ function renderFavBar() {
         wrapper.classList.remove('fav-drag-over');
         reorderFav(favDragSrcIdx, idx);
       });
-      // Touch drag
       wrapper.addEventListener('touchstart', e => {
         if (!favEditing) return;
         e.preventDefault();
@@ -684,7 +753,6 @@ function renderFavBar() {
   const addBtn = document.createElement('button');
   addBtn.className = 'fav-add';
   addBtn.textContent = '+';
-  addBtn.title = 'お気に入り通貨を追加';
   addBtn.onclick = () => openCurrencyPicker('fav');
   bar.appendChild(addBtn);
 
@@ -839,11 +907,10 @@ function convertCurrencies() {
   const container = document.getElementById('currencyResults');
   const amount = parseFloat(current);
   if (isNaN(amount) || !rates || Object.keys(rates).length === 0) {
-    container.innerHTML = '<div style="color:var(--text-dim);font-size:.9rem;padding:8px;">計算結果を入力するとここに通貨変換が表示されます</div>';
+    container.innerHTML = '<div style="color:var(--text-dim);font-size:.85rem;padding:8px;">数値を入力すると通貨変換されます</div>';
     return;
   }
   container.innerHTML = '';
-  // Show base amount
   const baseRow = document.createElement('div');
   baseRow.className = 'currency-row base-row';
   baseRow.innerHTML = `
@@ -878,7 +945,6 @@ function convertCurrencies() {
         <button class="remove-btn" onclick="removeTargetCurrency('${code}')" title="削除">✕</button>
       </div>
     `;
-    // Desktop drag events
     row.addEventListener('dragstart', e => {
       dragSrcIdx = idx;
       row.classList.add('dragging');
@@ -892,7 +958,6 @@ function convertCurrencies() {
       row.classList.remove('drag-over');
       reorderCurrency(dragSrcIdx, idx);
     });
-    // Touch drag events
     const handle = row.querySelector('.drag-handle');
     handle.addEventListener('touchstart', e => {
       e.preventDefault();
@@ -912,27 +977,21 @@ function reorderCurrency(fromIdx, toIdx) {
   convertCurrencies();
 }
 
-// Touch drag support for mobile
-let touchDragEl = null;
-let touchDragIdx = null;
-let touchClone = null;
+let touchDragEl = null, touchDragIdx = null, touchClone = null;
 
 function touchDragStart(idx, rowEl, touch) {
   touchDragIdx = idx;
   touchDragEl = rowEl;
-
-  // Create floating clone
   touchClone = rowEl.cloneNode(true);
   touchClone.style.cssText = `
     position:fixed; z-index:300; pointer-events:none;
     width:${rowEl.offsetWidth}px; opacity:.85;
     left:${rowEl.getBoundingClientRect().left}px;
     top:${touch.clientY - rowEl.offsetHeight / 2}px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.4); border-radius:8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); border-radius:10px;
   `;
   document.body.appendChild(touchClone);
   rowEl.classList.add('dragging');
-
   document.addEventListener('touchmove', touchDragMove, { passive: false });
   document.addEventListener('touchend', touchDragEnd);
 }
@@ -940,13 +999,9 @@ function touchDragStart(idx, rowEl, touch) {
 function touchDragMove(e) {
   e.preventDefault();
   const touch = e.touches[0];
-  if (touchClone) {
-    touchClone.style.top = (touch.clientY - touchClone.offsetHeight / 2) + 'px';
-  }
-  // Highlight row under finger
+  if (touchClone) touchClone.style.top = (touch.clientY - touchClone.offsetHeight / 2) + 'px';
   const container = document.getElementById('currencyResults');
-  const rows = container.querySelectorAll('.currency-row[draggable]');
-  rows.forEach(r => r.classList.remove('drag-over'));
+  container.querySelectorAll('.currency-row[draggable]').forEach(r => r.classList.remove('drag-over'));
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
   if (el) {
     const row = el.closest('.currency-row[draggable]');
@@ -957,11 +1012,8 @@ function touchDragMove(e) {
 function touchDragEnd(e) {
   document.removeEventListener('touchmove', touchDragMove);
   document.removeEventListener('touchend', touchDragEnd);
-
   if (touchClone) { touchClone.remove(); touchClone = null; }
-  if (touchDragEl) { touchDragEl.classList.remove('dragging'); }
-
-  // Find drop target
+  if (touchDragEl) touchDragEl.classList.remove('dragging');
   const touch = e.changedTouches[0];
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
   if (el) {
@@ -970,11 +1022,8 @@ function touchDragEnd(e) {
       reorderCurrency(touchDragIdx, parseInt(row.dataset.idx));
     }
   }
-
-  // Clean up highlights
   document.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
-  touchDragIdx = null;
-  touchDragEl = null;
+  touchDragIdx = null; touchDragEl = null;
 }
 
 function copyText(text) {
