@@ -634,7 +634,22 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Escape') clearAll();
   else if (e.key === '%') inputPercent();
   else if (e.key === 'Backspace') backspace();
+  else if (/^[a-zA-Z]$/.test(e.key)) switchFavByKey(e.key.toUpperCase());
 });
+
+// ── Keyboard currency switch ──
+function switchFavByKey(letter) {
+  const matches = favBaseCurrencies.filter(c => c.startsWith(letter));
+  if (matches.length === 0) return;
+  if (matches.length === 1) {
+    if (baseCur !== matches[0]) setBaseCurrency(matches[0]);
+    return;
+  }
+  // Toggle: find current in matches, move to next
+  const idx = matches.indexOf(baseCur);
+  const next = idx === -1 ? 0 : (idx + 1) % matches.length;
+  setBaseCurrency(matches[next]);
+}
 
 // ── Currency Conversion ──
 const POPULAR_CURRENCIES = [
